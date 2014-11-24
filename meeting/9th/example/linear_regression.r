@@ -1,45 +1,3 @@
-\documentclass[uplatex]{jsarticle}
-\usepackage{url}
-\usepackage{listings}
-
-\begin{document}
-Rでベイス線形回帰
-
-PRML 3.3.2章 予測分布
-Rでの実装について事例紹介をします。
-参考にしたのは、\url{http://d.hatena.ne.jp/n_shuyo/20090709/predictive}です。
-
-予測分布の式。
-\begin{equation}
-p(t|\mathbf{x},\mathbf{t},α,β)=\mathit{N}(t|\mathbf{m}^{T}_{N}φ(\mathbf{x}),σ^{2}_{N}(\mathbf{x}))
-\end{equation}
-
-念のためガウス分布の定義。教科書では(1.47)。
-$μ$は平均、$σ^2$が分散。
-\begin{equation}
-N(x|μ,σ^2)=\frac{1}{(2πσ^2)^{1/2}}exp\biggl\{-\frac{1}{2σ^2}(x-μ)^2\biggl\}
-\end{equation}
-
-ここで、
-\begin{equation}
-σ^2_N(\mathbf{x})=\frac{1}{β}+φ(\mathbf{x})^T\mathbf{S}_Nφ(x)
-\end{equation}
-
-\begin{equation}
-\mathbf{m}_N=β\mathbf{S}_N\mathbf{φ}^T\mathbf{t}
-\end{equation}
-
-\begin{equation}
-\mathbf{S}^{-1}_N=α\mathbf{I}+β\mathbf{φ}^T\mathbf{φ}
-\end{equation}
-
-基底関数はガウス基底関数を使用する。教科書では(3.4)。
-\begin{equation}
-φ_j(x)=exp\biggl\{-\frac{(x-u_j)^2}{2s^2}\biggl\}
-\end{equation}
-ここで$μ_j$は入力空間における基底関数の位置を表し、パラメータsは空間的な尺度を表す。
-
-\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
 #####################################################
 #
 # Usage: R --vanilla --slave < linear_reqgression.r
@@ -101,6 +59,3 @@ draw_dist(p);
 
 # pdf("PRML_graph.pdf")
 # dev.off()
-\end{lstlisting}
-
-\end{document}
