@@ -3,13 +3,17 @@
 \usepackage{listings}
 
 \begin{document}
-Rでベイス線形回帰
+\part{Rでベイス線形回帰}
 
-PRML 3.3.2章 予測分布
-Rでの実装について事例紹介をします。
-参考にしたのは、\url{http://d.hatena.ne.jp/n_shuyo/20090709/predictive}です。
+\section{はじめに}
+この資料は、第８回 機械学習勉強会で勉強した、ベイス線形回帰をR言語を使って実装する例を説明するものです。\par
+参考にしたのは、\url{http://d.hatena.ne.jp/n_shuyo/20090709/predictive}です。\par
+ソースコードは、丸ごとコピペです。宇佐美のオリジナリティはありません。\par
+コンセプトは、{\Large 「他人のふんどしで相撲をとる」}です。
 
-予測分布の式。
+
+\section{PRML 3.3.2章 予測分布}
+予測分布の式を、おさらいします。
 \begin{equation}
 p(t|\mathbf{x},\mathbf{t},α,β)=\mathit{N}(t|\mathbf{m}^{T}_{N}φ(\mathbf{x}),σ^{2}_{N}(\mathbf{x}))
 \end{equation}
@@ -39,6 +43,7 @@ N(x|μ,σ^2)=\frac{1}{(2πσ^2)^{1/2}}exp\biggl\{-\frac{1}{2σ^2}(x-μ)^2\biggl\
 \end{equation}
 ここで$μ_j$は入力空間における基底関数の位置を表し、パラメータsは空間的な尺度を表す。
 
+\section{Rのソースコード}
 \begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
 #####################################################
 #
