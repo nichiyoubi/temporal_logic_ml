@@ -116,20 +116,42 @@ draw_dist(p);
 
 \section{解説}
 \subsection{計画行列}
+ガウス基底関数をおさらいします。
+\begin{equation}
+φ_j(x)=exp\biggl\{-\frac{(x-u_j)^2}{2s^2}\biggl\}
+\end{equation}
+
+計画行列のおさらいです。
+\begin{equation}
+\mathbf{φ}=\left(
+\begin{array}{cccc}
+φ_0(\mathbf{x}_1) & φ_1(\mathbf{x}_1) & … & φ_{M-1}(\mathbf{x}_1)\\
+φ_0(\mathbf{x}_2) & φ_1(\mathbf{x}_2) & … & φ_{M-1}(\mathbf{x}_2)\\
+… & … & … & …\\
+φ_0(\mathbf{x}_N) & φ_1(\mathbf{x}_N) & … & φ_{M-1}(\mathbf{x}_N) 
+\end{array}
+\right)
+\end{equation}
+
 \begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
 # design matrix
 phi <- function(x) sapply(x,function(x){exp(-(x-seq(0,1,length=9))^2/(2*s*s))})
 PHI <- t(phi(D$x))
 \end{lstlisting}
-\begin{equation}
-φ_j(x)=exp\biggl\{-\frac{(x-u_j)^2}{2s^2}\biggl\}
-\end{equation}
-計画行列に相当する部分のソースコードです。
-sapplyは、リストに関数を適用して行列を返します。
-phi(D\$x)で、データフレームDのx列をphi関数に適用して、計画関数を作ります。
+
+計画行列に相当する部分のソースコードです。\par
+phiの後半部分は、ガウス基底関数そのままであることがわかります。ガウス基底関数の$μ_j$部分がseq(0,1,length=9)に変更されています。これは、パラメータ$μ_j$を[0,1]で９等分にすることを意味しています。これでガウス基底関数部分はスカラー値xを与えると、ベクトル値が返る関数になります。sapplyは、リストに関数を適用して行列を返す関数なので、phiにリストを与えると行列が返ります。\par
+phi(D\$x)で、データフレームDのx列をphi関数に適用して、計画行列を作ります。
 t関数は行列を転置してくれる関数です。
 
 \subsection{共分散\&平均行列}
+共分散$S_N$と平均行列$M_N$をおさらいします。
+\begin{equation}
+\mathbf{m}_N=β\mathbf{S}_N\mathbf{φ}^T\mathbf{t}
+\end{equation}
+\begin{equation}
+\mathbf{S}^{-1}_N=α\mathbf{I}+β\mathbf{φ}^T\mathbf{φ}
+\end{equation}
 \begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
     # convariance matrix & means
     S_N_inv <- alpha * diag(9) + beta * t(PHI) %*% PHI
@@ -137,7 +159,19 @@ t関数は行列を転置してくれる関数です。
     m_N <- beta * S_N %*% t(PHI) %*% D$t
 \end{lstlisting}
 
+共分散$S_N$と平均行列$M_N$に相当する部分のソースコードです。\par
+diagは単位行列を作る関数です。solveは逆行列を求める関数です。\par
+ハイパーパラメータのαとβは、ソースコードの最初で定数として定義されています。
+
 \subsection{予測分布}
+予測分布の式をおさらいします。
+\begin{equation}
+p(t|\mathbf{x},\mathbf{t},α,β)=\mathit{N}(t|\mathbf{m}^{T}_{N}φ(\mathbf{x}),σ^{2}_{N}(\mathbf{x}))
+\end{equation}
+予測分布の分散$σ^2_N(x)$の式をおさらいします。
+\begin{equation}
+σ^2_N(\mathbf{x})=\frac{1}{β}+φ(\mathbf{x})^T\mathbf{S}_Nφ(x)
+\end{equation}
 \begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
     # predictive distribution
     var_N <- function(x) {1/beta + (t(phi(x)) %*% S_N %*% phi(x))[1]}
@@ -145,5 +179,9 @@ t関数は行列を転置してくれる関数です。
         mapply(function(x,t)dnorm(t,m=(t(m_N) %*% phi(x))[1], s=var_N(x), log=T), x, t)
     }
 \end{lstlisting}
+
+予測分布の式に相当する部分のソースコードです。\par
+分散の関数は、式そのままです。\par
+dnorm関数は、正規分布の確率密度です。
 
 \end{document}
