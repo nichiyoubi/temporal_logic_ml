@@ -1,0 +1,187 @@
+\documentclass[uplatex]{jsarticle}
+\usepackage{url}
+\usepackage{listings}
+
+\title{Rでベイス線形回帰}
+\author{宇佐美雅紀}
+\date{2014/12/01}
+
+\begin{document}
+\maketitle
+
+\section{はじめに}
+この資料は、第８回 機械学習勉強会で勉強した、ベイス線形回帰をR言語を使って実装する例を説明するものです。参考にしたのは、以下のブログです。\par
+
+\begin{center}
+{\large Mimanca qualche giovedi?}\par
+Rでベイズ線形回帰の予測分布(2009-07-09付)
+\url{http://d.hatena.ne.jp/n_shuyo/20090709/predictive}
+\end{center}
+\par
+ソースコードは、丸ごとコピペです。宇佐美のオリジナリティはありません。\par
+コンセプトは、{\Large 「他人のふんどしで相撲をとる」}です。
+
+
+\section{PRML 3.3.2章 予測分布のおさらい}
+教科書の3.3.2章で解説している予測分布の式をおさらいします。予測分布の式は以下のようになります(教科書 3.58式)。
+\begin{equation}
+p(t|\mathbf{x},\mathbf{t},α,β)=\mathit{N}(t|\mathbf{m}^{T}_{N}φ(\mathbf{x}),σ^{2}_{N}(\mathbf{x}))
+\end{equation}
+\\
+ここで、予測分布の分散$σ^2_N(x)$は、以下の式で与えられます(教科書 3.59式)。
+\begin{equation}
+σ^2_N(\mathbf{x})=\frac{1}{β}+φ(\mathbf{x})^T\mathbf{S}_Nφ(x)
+\end{equation}
+\\
+また、$\mathbf{m}_N$、$\mathbf{S}^{-1}_N$はそれぞれ教科書3.53式、3.54式から以下のように与えられます。
+\begin{equation}
+\mathbf{m}_N=β\mathbf{S}_N\mathbf{φ}^T\mathbf{t}
+\end{equation}
+\begin{equation}
+\mathbf{S}^{-1}_N=α\mathbf{I}+β\mathbf{φ}^T\mathbf{φ}
+\end{equation}
+\\
+基底関数はガウス基底関数を使用します(教科書 3.4式)。
+ここで$μ_j$は入力空間における基底関数の位置を表し、パラメータsは空間的な尺度を表す、と教科書には書いてますがイマイチよくわかりません。
+\begin{equation}
+φ_j(x)=exp\biggl\{-\frac{(x-u_j)^2}{2s^2}\biggl\}
+\end{equation}
+\\
+念のためガウス分布の定義もおさらいします(教科書 1.47式)。
+$μ$は平均、$σ^2$が分散。
+\begin{equation}
+N(x|μ,σ^2)=\frac{1}{(2πσ^2)^{1/2}}exp\biggl\{-\frac{1}{2σ^2}(x-μ)^2\biggl\}
+\end{equation}
+
+
+\section{Rのソースコード}
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+#####################################################
+#
+# Usage: R --vanilla --slave < linear_reqgression.r
+# 	http://d.hatena.ne.jp/n_shuyo/20090709/predictive
+#
+#####################################################
+
+M <- 9		# number of basis function
+alpha <- 2	# hyper parameter α
+beta <- 25	# hyper parameter β
+Lattice <- 30	# number of graph's lattice
+s<-0.1
+u_i<-0.5
+
+# training data
+xlist <- seq(0, 1, length=25)
+tlist <- sin(2*pi*xlist) + rnorm(length(xlist), sd=0.2)
+D0 <- data.frame(x=xlist, t=tlist)
+
+predictive <- function(D) {
+    # design matrix
+    phi <- function(x) sapply(x,function(x){exp(-(x-seq(0,1,length=9))^2/(2*s*s))})
+    PHI <- t(phi(D$x))
+
+    # convariance matrix & means
+    S_N_inv <- alpha * diag(9) + beta * t(PHI) %*% PHI
+    S_N <- solve(S_N_inv)
+    m_N <- beta * S_N %*% t(PHI) %*% D$t
+
+    # regression function
+    y <- function(x)(t(phi(x)) %*% m_N)
+    plot(y, xlim=c(0,1), ylim=c(-1.2, 1.2))
+    par(new=T)
+    plot(D, xlim=c(0,1), ylim=c(-1.2, 1.2), ylab="")
+
+    # predictive distribution
+    var_N <- function(x) {1/beta + (t(phi(x)) %*% S_N %*% phi(x))[1]}
+    function(x,t) {
+        mapply(function(x,t)dnorm(t,m=(t(m_N) %*% phi(x))[1], s=var_N(x), log=T), x, t)
+    }
+}
+draw_dist <- function(p){
+    x <- seq(0, 1, length=Lattice)
+    t <- seq(-1.5, 1.5, length=Lattice*2)
+    z <- outer(x, t, p)
+    persp(x, t, z, theta=0, phi=60, shade=0.4)
+}
+
+p <- predictive(D0[sample(length(D0$x))[1:1],])
+draw_dist(p);
+p <- predictive(D0[sample(length(D0$x))[1:2],])
+draw_dist(p);
+p <- predictive(D0[sample(length(D0$x))[1:4],])
+draw_dist(p);
+p <- predictive(D0)
+draw_dist(p);
+\end{lstlisting}
+
+\section{解説}
+\subsection{計画行列}
+ガウス基底関数をおさらいします。
+\begin{equation}
+φ_j(x)=exp\biggl\{-\frac{(x-u_j)^2}{2s^2}\biggl\}
+\end{equation}
+
+計画行列のおさらいです。
+\begin{equation}
+\mathbf{φ}=\left(
+\begin{array}{cccc}
+φ_0(\mathbf{x}_1) & φ_1(\mathbf{x}_1) & … & φ_{M-1}(\mathbf{x}_1)\\
+φ_0(\mathbf{x}_2) & φ_1(\mathbf{x}_2) & … & φ_{M-1}(\mathbf{x}_2)\\
+… & … & … & …\\
+φ_0(\mathbf{x}_N) & φ_1(\mathbf{x}_N) & … & φ_{M-1}(\mathbf{x}_N) 
+\end{array}
+\right)
+\end{equation}
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+# design matrix
+phi <- function(x) sapply(x,function(x){exp(-(x-seq(0,1,length=9))^2/(2*s*s))})
+PHI <- t(phi(D$x))
+\end{lstlisting}
+
+計画行列に相当する部分のソースコードです。\par
+phiの後半部分は、ガウス基底関数そのままであることがわかります。ガウス基底関数の$μ_j$部分がseq(0,1,length=9)に変更されています。これは、パラメータ$μ_j$を[0,1]で９等分にすることを意味しています。これでガウス基底関数部分はスカラー値xを与えると、ベクトル値が返る関数になります。sapplyは、リストに関数を適用して行列を返す関数なので、phiにリストを与えると行列が返ります。\par
+phi(D\$x)で、データフレームDのx列をphi関数に適用して、計画行列を作ります。
+t関数は行列を転置してくれる関数です。
+
+\subsection{共分散\&平均行列}
+共分散$S_N$と平均行列$M_N$をおさらいします。
+\begin{equation}
+\mathbf{m}_N=β\mathbf{S}_N\mathbf{φ}^T\mathbf{t}
+\end{equation}
+\begin{equation}
+\mathbf{S}^{-1}_N=α\mathbf{I}+β\mathbf{φ}^T\mathbf{φ}
+\end{equation}
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+    # convariance matrix & means
+    S_N_inv <- alpha * diag(9) + beta * t(PHI) %*% PHI
+    S_N <- solve(S_N_inv)
+    m_N <- beta * S_N %*% t(PHI) %*% D$t
+\end{lstlisting}
+
+共分散$S_N$と平均行列$M_N$に相当する部分のソースコードです。\par
+diagは単位行列を作る関数です。solveは逆行列を求める関数です。\par
+ハイパーパラメータのαとβは、ソースコードの最初で定数として定義されています。
+
+\subsection{予測分布}
+予測分布の式をおさらいします。
+\begin{equation}
+p(t|\mathbf{x},\mathbf{t},α,β)=\mathit{N}(t|\mathbf{m}^{T}_{N}φ(\mathbf{x}),σ^{2}_{N}(\mathbf{x}))
+\end{equation}
+予測分布の分散$σ^2_N(x)$の式をおさらいします。
+\begin{equation}
+σ^2_N(\mathbf{x})=\frac{1}{β}+φ(\mathbf{x})^T\mathbf{S}_Nφ(x)
+\end{equation}
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+    # predictive distribution
+    var_N <- function(x) {1/beta + (t(phi(x)) %*% S_N %*% phi(x))[1]}
+    function(x,t) {
+        mapply(function(x,t)dnorm(t,m=(t(m_N) %*% phi(x))[1], s=var_N(x), log=T), x, t)
+    }
+\end{lstlisting}
+
+予測分布の式に相当する部分のソースコードです。\par
+分散の関数は、式そのままです。\par
+dnorm関数は、正規分布の確率密度です。
+
+\end{document}
